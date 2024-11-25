@@ -1,28 +1,76 @@
-# GraphQL schema example
-#
-# https://gqlgen.com/getting-started/
+# E-commerce GraphQL schema
 
-type Todo {
-  id: ID!
-  text: String!
-  done: Boolean!
-  user: User!
-}
-
-type User {
+# Represents a product in the e-commerce system
+type Product {
   id: ID!
   name: String!
+  price: Float!
+  category: Category!
+  stock: Int!
 }
 
+# Represents a category of products
+type Category {
+  id: ID!
+  name: String!
+  products: [Product!]!
+}
+
+# Represents an order made by a user
+type Order {
+  id: ID!
+  items: [OrderItem!]!
+  totalAmount: Float!
+  status: String!
+  createdAt: String!
+}
+
+# Represents an individual item in an order
+type OrderItem {
+  product: Product!
+  quantity: Int!
+  price: Float!
+}
+
+# Queries for retrieving e-commerce data
 type Query {
-  todos: [Todo!]!
+  # Fetch a list of products with optional filters
+  products(categoryId: ID): [Product!]!
+
+  # Fetch details of a single product by ID
+  product(id: ID!): Product
+
+  # Fetch a list of categories
+  categories: [Category!]!
+
+  # Fetch a list of orders
+  orders: [Order!]!
 }
 
-input NewTodo {
-  text: String!
-  userId: String!
+# Input for creating a new order
+input NewOrderInput {
+  items: [OrderItemInput!]!
 }
 
+# Input for individual items in a new order
+input OrderItemInput {
+  productId: ID!
+  quantity: Int!
+}
+
+# Mutations for managing e-commerce actions
 type Mutation {
-  createTodo(input: NewTodo!): Todo!
+  # Add a new product to the store
+  addProduct(
+    name: String!
+    price: Float!
+    categoryId: ID!
+    stock: Int!
+  ): Product!
+
+  # Update the product stock (e.g., after a sale)
+  updateProductStock(productId: ID!, stock: Int!): Product!
+
+  # Create a new order
+  createOrder(input: NewOrderInput!): Order!
 }
