@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -16,14 +15,10 @@ type MongoDBConfig struct {
 	Hostname string
 }
 
-var (
-	endpoint string
-)
-
 func NewMongoDbConnection(ctx context.Context, connection *MongoDBConfig) (*mongo.Client, error) {
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	endpoint = fmt.Sprintf("mongodb+srv://%s:%s@%s/?retryWrites=true&w=majority&appName=Cluster0", connection.Username, connection.Password, connection.Hostname)
-	opts := options.Client().ApplyURI(endpoint).SetServerAPIOptions(serverAPI)
+	// TODO-replace the username and password with environment variables;
+	opts := options.Client().ApplyURI("mongodb+srv://yaninyz:qScK30tnh4WcWpoy@cluster0.8kayacq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0").SetServerAPIOptions(serverAPI)
 	client, err := mongo.Connect(ctx, opts)
 	if err != nil {
 		slog.Error("failed to make a connection to mongodb", "error", err)

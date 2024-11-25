@@ -74,7 +74,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("connected to database succesfully 🚀")
+	slog.Info("connected to mongo succesfully 🚀")
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
