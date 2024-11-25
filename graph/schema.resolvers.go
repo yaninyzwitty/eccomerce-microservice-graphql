@@ -11,21 +11,82 @@ import (
 	"github.com/yaninyzwitty/new-galgrn-go/graph/model"
 )
 
-// CreateTodo is the resolver for the createTodo field.
-func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: CreateTodo - createTodo"))
+// Products is the resolver for the products field.
+func (r *categoryResolver) Products(ctx context.Context, obj *model.Category) ([]*model.Product, error) {
+	panic(fmt.Errorf("not implemented: Products - products"))
 }
 
-// Todos is the resolver for the todos field.
-func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: Todos - todos"))
+// AddProduct is the resolver for the addProduct field.
+func (r *mutationResolver) AddProduct(ctx context.Context, name string, price float64, categoryID string, stock int) (*model.Product, error) {
+	panic(fmt.Errorf("not implemented: AddProduct - addProduct"))
 }
+
+// UpdateProductStock is the resolver for the updateProductStock field.
+func (r *mutationResolver) UpdateProductStock(ctx context.Context, productID string, stock int) (*model.Product, error) {
+	panic(fmt.Errorf("not implemented: UpdateProductStock - updateProductStock"))
+}
+
+// CreateOrder is the resolver for the createOrder field.
+func (r *mutationResolver) CreateOrder(ctx context.Context, input model.NewOrderInput) (*model.Order, error) {
+	panic(fmt.Errorf("not implemented: CreateOrder - createOrder"))
+}
+
+// Items is the resolver for the items field.
+func (r *orderResolver) Items(ctx context.Context, obj *model.Order) ([]*model.OrderItem, error) {
+	panic(fmt.Errorf("not implemented: Items - items"))
+}
+
+// Product is the resolver for the product field.
+func (r *orderItemResolver) Product(ctx context.Context, obj *model.OrderItem) (*model.Product, error) {
+	panic(fmt.Errorf("not implemented: Product - product"))
+}
+
+// Category is the resolver for the category field.
+func (r *productResolver) Category(ctx context.Context, obj *model.Product) (*model.Category, error) {
+	panic(fmt.Errorf("not implemented: Category - category"))
+}
+
+// Products is the resolver for the products field.
+func (r *queryResolver) Products(ctx context.Context, categoryID *string) ([]*model.Product, error) {
+	panic(fmt.Errorf("not implemented: Products - products"))
+}
+
+// Product is the resolver for the product field.
+func (r *queryResolver) Product(ctx context.Context, id string) (*model.Product, error) {
+	panic(fmt.Errorf("not implemented: Product - product"))
+}
+
+// Categories is the resolver for the categories field.
+func (r *queryResolver) Categories(ctx context.Context) ([]*model.Category, error) {
+	panic(fmt.Errorf("not implemented: Categories - categories"))
+}
+
+// Orders is the resolver for the orders field.
+func (r *queryResolver) Orders(ctx context.Context) ([]*model.Order, error) {
+	panic(fmt.Errorf("not implemented: Orders - orders"))
+}
+
+// Category returns CategoryResolver implementation.
+func (r *Resolver) Category() CategoryResolver { return &categoryResolver{r} }
 
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
+// Order returns OrderResolver implementation.
+func (r *Resolver) Order() OrderResolver { return &orderResolver{r} }
+
+// OrderItem returns OrderItemResolver implementation.
+func (r *Resolver) OrderItem() OrderItemResolver { return &orderItemResolver{r} }
+
+// Product returns ProductResolver implementation.
+func (r *Resolver) Product() ProductResolver { return &productResolver{r} }
+
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+type categoryResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
+type orderResolver struct{ *Resolver }
+type orderItemResolver struct{ *Resolver }
+type productResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
