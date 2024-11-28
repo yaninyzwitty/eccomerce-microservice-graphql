@@ -21,9 +21,7 @@ import (
 )
 
 var (
-	username string
-	password string
-	hostname string
+	s string
 )
 
 func main() {
@@ -47,18 +45,13 @@ func main() {
 		slog.Error("failed to load .env file")
 	}
 
-	username = os.Getenv("USERNAME")
-	password = os.Getenv("PASSWORD")
-	hostname = os.Getenv("HOSTNAME")
-	if username == "" || password == "" || hostname == "" {
+	if s = os.Getenv("DATABASE_URL"); s == "" {
 		slog.Error("failed to load mongo db config")
 		os.Exit(1)
 	}
 
 	mongoDBConfig := &database.MongoDBConfig{
-		Username: username,
-		Password: password,
-		Hostname: hostname,
+		DATABASE_URL: s,
 	}
 
 	mongoDBClient, err := database.NewMongoDbConnection(ctx, mongoDBConfig)
@@ -74,13 +67,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// get the collection
+	productsCollection := mongoDBClient.Database("eccomerce_microservice").Collection("products")
+	categoriesCollection := mongoDBClient.Database("eccomerce_microservice").Collection("categories")
+
 	slog.Info("connected to mongo succesfully 🚀")
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 
 	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{
-		MongoDBClient: mongoDBClient,
+		MongoDBProductscollection:   productsCollection,
+		MongoDBCategoriescollection: categoriesCollection,
 	}}))
 
 	router.Handle("/", playground.Handler("GraphQL playground", "/query"))

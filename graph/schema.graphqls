@@ -67,6 +67,8 @@ type Mutation {
     categoryId: ID!
     stock: Int!
   ): Product!
+  # create a category
+  addCategory(name: String!, description: String): Category!
 
   # Update the product stock (e.g., after a sale)
   updateProductStock(productId: ID!, stock: Int!): Product!
