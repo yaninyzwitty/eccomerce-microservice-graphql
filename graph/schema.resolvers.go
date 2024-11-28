@@ -7,8 +7,12 @@ package graph
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/yaninyzwitty/new-galgrn-go/graph/model"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Products is the resolver for the products field.
@@ -18,7 +22,98 @@ func (r *categoryResolver) Products(ctx context.Context, obj *model.Category) ([
 
 // AddProduct is the resolver for the addProduct field.
 func (r *mutationResolver) AddProduct(ctx context.Context, name string, price float64, categoryID string, stock int) (*model.Product, error) {
-	panic(fmt.Errorf("not implemented: AddProduct - addProduct"))
+	if len(categoryID) != 24 {
+		return nil, fmt.Errorf("invalid category id: must be a 24-character hexadecimal string")
+	}
+
+	catID, err := primitive.ObjectIDFromHex(categoryID)
+	if err != nil {
+		slog.Error("invalid category id")
+		return nil, fmt.Errorf("invalid category id: %w", err)
+	}
+
+	// Fetch category from MongoDB
+	var category model.Category
+	err = r.MongoDBCategoriescollection.FindOne(ctx, bson.M{"_id": catID}).Decode(&category)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			slog.Error("category not found", "categoryID", categoryID)
+			return nil, fmt.Errorf("category not found")
+		}
+		slog.Error("failed to fetch category", "error", err)
+		return nil, fmt.Errorf("failed to fetch category: %w", err)
+	}
+
+	// Create the new product
+	newMongoProduct := model.MongoProduct{
+		ID:         primitive.NewObjectID(),
+		Name:       name,
+		Price:      price,
+		Stock:      stock,
+		CategoryID: catID,
+	}
+
+	// Insert the product into MongoDB
+	result, err := r.MongoDBProductscollection.InsertOne(ctx, newMongoProduct)
+	if err != nil {
+		slog.Error("failed to insert product", "error", err)
+		return nil, fmt.Errorf("failed to insert product: %w", err)
+	}
+
+	// Validate InsertedID as ObjectID
+	insertedID, ok := result.InsertedID.(primitive.ObjectID)
+	if !ok {
+		slog.Error("unexpected ID type returned from InsertOne", "id", result.InsertedID)
+		return nil, fmt.Errorf("unexpected ID type returned from InsertOne")
+	}
+
+	// Construct and return the GraphQL Product model
+	return &model.Product{
+		ID:       insertedID.Hex(),
+		Name:     name,
+		Price:    price,
+		Category: &category,
+		Stock:    stock,
+	}, nil
+}
+
+// AddCategory is the resolver for the addCategory field.
+func (r *mutationResolver) AddCategory(ctx context.Context, name string, description *string) (*model.Category, error) {
+	// Safely handle the optional description
+	var desc string
+	if description != nil {
+		desc = *description
+	}
+
+	// Construct the category data model
+	newCategory := model.MongoCategory{
+		ID:          primitive.NewObjectID(),
+		Name:        name,
+		Description: desc,
+	}
+
+	// Insert the new category into the database
+	result, err := r.MongoDBCategoriescollection.InsertOne(ctx, newCategory)
+	if err != nil {
+		slog.Error("failed to insert category", "error", err)
+		return nil, fmt.Errorf("failed to insert category: %w", err)
+	}
+
+	// Validate InsertedID as ObjectID
+	insertedID, ok := result.InsertedID.(primitive.ObjectID)
+	if !ok {
+		slog.Error("unexpected ID type returned from InsertOne", "id", result.InsertedID)
+		return nil, fmt.Errorf("unexpected ID type returned from InsertOne")
+	}
+
+	// Query products associated with the new category
+	var products []*model.Product
+	// Return the newly created category
+	return &model.Category{
+		ID:       insertedID.Hex(),
+		Name:     name,
+		Products: products,
+	}, nil
 }
 
 // UpdateProductStock is the resolver for the updateProductStock field.
@@ -43,17 +138,106 @@ func (r *orderItemResolver) Product(ctx context.Context, obj *model.OrderItem) (
 
 // Category is the resolver for the category field.
 func (r *productResolver) Category(ctx context.Context, obj *model.Product) (*model.Category, error) {
-	panic(fmt.Errorf("not implemented: Category - category"))
+	catID, err := primitive.ObjectIDFromHex(obj.Category.ID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid category id: %w", err)
+	}
+
+	// Fetch the category from the database
+	var category model.Category
+	err = r.MongoDBCategoriescollection.FindOne(ctx, bson.M{"_id": catID}).Decode(&category)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("category not found")
+		}
+		return nil, fmt.Errorf("failed to fetch category: %w", err)
+	}
+
+	return &category, nil
 }
 
 // Products is the resolver for the products field.
 func (r *queryResolver) Products(ctx context.Context, categoryID *string) ([]*model.Product, error) {
-	panic(fmt.Errorf("not implemented: Products - products"))
+	if categoryID == nil {
+		return nil, fmt.Errorf("categoryID is required")
+	}
+
+	catID, err := primitive.ObjectIDFromHex(*categoryID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid category id: %w", err)
+	}
+
+	filter := bson.M{"category_id": catID}
+
+	cursor, err := r.MongoDBProductscollection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch products: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var mongoProducts []*model.MongoProduct
+	if err = cursor.All(ctx, &mongoProducts); err != nil {
+		return nil, fmt.Errorf("failed to decode products: %w", err)
+	}
+
+	products := make([]*model.Product, len(mongoProducts))
+	for i, mongoProduct := range mongoProducts {
+		category := &model.Category{
+			ID:   mongoProduct.CategoryID.Hex(),
+			Name: mongoProduct.Name,
+		}
+		products[i] = &model.Product{
+			ID:       mongoProduct.ID.Hex(),
+			Name:     mongoProduct.Name,
+			Price:    mongoProduct.Price,
+			Category: category,
+			Stock:    mongoProduct.Stock,
+		}
+	}
+
+	return products, nil
 }
 
 // Product is the resolver for the product field.
 func (r *queryResolver) Product(ctx context.Context, id string) (*model.Product, error) {
-	panic(fmt.Errorf("not implemented: Product - product"))
+	productId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid product id: %w", err)
+	}
+	var mongoProduct model.MongoProduct
+
+	err = r.MongoDBProductscollection.FindOne(ctx, bson.M{"_id": productId}).Decode(&mongoProduct)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("product not found")
+		}
+		return nil, fmt.Errorf("failed to fetch product: %w", err)
+	}
+
+	// fetch category from mongodb
+	var mongoCategory model.MongoCategory
+
+	err = r.MongoDBCategoriescollection.FindOne(ctx, bson.M{"_id": mongoProduct.CategoryID}).Decode(&mongoCategory)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("category not found")
+		}
+		return nil, fmt.Errorf("failed to fetch category: %w", err)
+	}
+
+	category := &model.Category{
+		ID:   mongoCategory.ID.Hex(),
+		Name: mongoCategory.Name,
+	}
+
+	return &model.Product{
+		ID:       mongoProduct.ID.Hex(),
+		Name:     mongoProduct.Name,
+		Price:    mongoProduct.Price,
+		Category: category,
+		Stock:    mongoProduct.Stock,
+	}, nil
+
 }
 
 // Categories is the resolver for the categories field.

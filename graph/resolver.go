@@ -7,5 +7,6 @@ import "go.mongodb.org/mongo-driver/mongo"
 // It serves as dependency injection for your app, add any dependencies you require here.
 
 type Resolver struct {
-	MongoDBClient *mongo.Client
+	MongoDBProductscollection   *mongo.Collection
+	MongoDBCategoriescollection *mongo.Collection
 }
