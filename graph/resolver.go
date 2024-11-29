@@ -9,4 +9,5 @@ import "go.mongodb.org/mongo-driver/mongo"
 type Resolver struct {
 	MongoDBProductscollection   *mongo.Collection
 	MongoDBCategoriescollection *mongo.Collection
+	MongodDBOrdersCollection    *mongo.Collection
 }

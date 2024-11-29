@@ -22,9 +22,6 @@ func (r *categoryResolver) Products(ctx context.Context, obj *model.Category) ([
 
 // AddProduct is the resolver for the addProduct field.
 func (r *mutationResolver) AddProduct(ctx context.Context, name string, price float64, categoryID string, stock int) (*model.Product, error) {
-	if len(categoryID) != 24 {
-		return nil, fmt.Errorf("invalid category id: must be a 24-character hexadecimal string")
-	}
 
 	catID, err := primitive.ObjectIDFromHex(categoryID)
 	if err != nil {
@@ -118,12 +115,61 @@ func (r *mutationResolver) AddCategory(ctx context.Context, name string, descrip
 
 // UpdateProductStock is the resolver for the updateProductStock field.
 func (r *mutationResolver) UpdateProductStock(ctx context.Context, productID string, stock int) (*model.Product, error) {
-	panic(fmt.Errorf("not implemented: UpdateProductStock - updateProductStock"))
+	if stock < 0 {
+		return nil, fmt.Errorf("stock cannot be negative")
+
+	}
+
+	// fetch existing product from repository
+	productIDPrimitive, err := primitive.ObjectIDFromHex(productID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid product id: %w", err)
+	}
+
+	var mongoProduct model.MongoProduct
+	filter := bson.D{{Key: "_id", Value: productIDPrimitive}}
+	if err := r.MongoDBProductscollection.FindOne(ctx, filter).Decode(&mongoProduct); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("product not found")
+		}
+		return nil, fmt.Errorf("failed to fetch product: %w", err)
+	}
+	// update product stock
+	updatedProduct := mongoProduct
+	updatedProduct.Stock = stock
+	updateFilter := bson.D{{Key: "_id", Value: productIDPrimitive}}
+	updateStock := bson.D{{Key: "$set", Value: bson.D{{Key: "stock", Value: stock}}}}
+	result, err := r.MongoDBProductscollection.UpdateOne(ctx, updateFilter, updateStock)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update product: %w", err)
+	}
+	if result.ModifiedCount == 0 {
+		return nil, fmt.Errorf("product not found")
+	}
+
+	var mongoCategory model.Category
+	if err := r.MongoDBCategoriescollection.FindOne(ctx, bson.M{"_id": mongoProduct.CategoryID}).Decode(&mongoCategory); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("category not found")
+		}
+		return nil, fmt.Errorf("failed to fetch category: %w", err)
+	}
+
+	return &model.Product{
+		ID:       updatedProduct.ID.Hex(),
+		Name:     updatedProduct.Name,
+		Price:    updatedProduct.Price,
+		Stock:    updatedProduct.Stock,
+		Category: &mongoCategory,
+	}, nil
+
 }
 
 // CreateOrder is the resolver for the createOrder field.
 func (r *mutationResolver) CreateOrder(ctx context.Context, input model.NewOrderInput) (*model.Order, error) {
-	panic(fmt.Errorf("not implemented: CreateOrder - createOrder"))
+
+	panic(fmt.Errorf("not implemented: Items - items"))
+
 }
 
 // Items is the resolver for the items field.
