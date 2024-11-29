@@ -70,6 +70,7 @@ func main() {
 	// get the collection
 	productsCollection := mongoDBClient.Database("eccomerce_microservice").Collection("products")
 	categoriesCollection := mongoDBClient.Database("eccomerce_microservice").Collection("categories")
+	ordersCollection := mongoDBClient.Database("eccomerce_microservice").Collection("orders")
 
 	slog.Info("connected to mongo succesfully 🚀")
 
@@ -79,6 +80,7 @@ func main() {
 	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{
 		MongoDBProductscollection:   productsCollection,
 		MongoDBCategoriescollection: categoriesCollection,
+		MongodDBOrdersCollection:    ordersCollection,
 	}}))
 
 	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
